@@ -19,21 +19,24 @@ winget install --id SublimeHQ.SublimeMerge
 sudo snap install sublime-merge --classic
 ```
 
-
 ## Git commit workflow
 
 This section functions as a tutorial and a standard for how we should add code to the project.
 
 ### Branch creation
-If you want to push something first check out with 
-```
-git checkout -b name-of-branch
-```
-where the branch name is a sensible name.
+If you want to push something first create a new issue on gitlab where the branch name is equal to, or a shortened version of the issue name.
+
+Remember to add relevant labels to the issue.
+
+After this run git fetch on your local systems terminal, then you can checkout to the branch. 
 
 After which you add the relevant files. 
 **DO NOT USE GIT ADD . EVER** It is very easy to accidentally add API keys or irrelevant files to git when doing this. 
 Add the specific files you are working on, if you are using sublime merge you can also specify which lines you wish to add to the commit.
+
+### Committing to the repo
+When committing follow the message guidlines outlined below. You may add multiple commits to a single push, as long as they are all relevan to the created issue.
+Try to have at most one fix, chore or feature per commit. 
 
 ### When pushing
 Pull from main before pushing using 
@@ -50,6 +53,8 @@ After which you can approve the merge after a review. Remember to check off dele
 ## Branch policy
 
 Main is the master branch. This is protected and is not to be pushed directly to.
+
+All branches should have a corresponding issue.
 
 Merge requests should ideally always be approved, however contributors are allowed to stage merges themselves.
 
