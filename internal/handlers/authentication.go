@@ -1,8 +1,11 @@
 package handlers
 
 import (
-	"crypto/md5"   //for generarting hash to create api key
-	"encoding/hex" //for converting md5 hash to string
+	model "assignment-2/internal/models"
+	//"assignment-2/internal/store"
+	"crypto/md5"    //for generarting hash to create api key
+	"crypto/sha256" //to store a hashed version of api key in database
+	"encoding/hex"  //for converting md5 hash to string
 	"encoding/json"
 	"fmt" //for writing output and testing
 	"net/http"
@@ -15,8 +18,8 @@ type Login struct {
 	Email string `json:"email"`
 }
 
-type key struct {
-	Key       string `json:"key"`
+type Key struct {
+	ApiKey    string `json:"key"`
 	CreatedAt string `json:"createdAt"`
 }
 
@@ -33,7 +36,10 @@ If the API key is unique, it encodes the key struct to JSON and sends it back to
 @see createAPIKey - the function responsible for generating a unique API key for the user
 @see isAPIKeyUsed - the function responsible for checking if the generated API key is already in use and not empty or incomplete
 */
-func RegisterAuth(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) RegisterAuth(w http.ResponseWriter, r *http.Request) {
+	//used in handling connection to Firestore
+	ctx := r.Context()
+
 	if r.Method != http.MethodPost { //if not a POST request, return method not allowed
 		http.Error(w, "Only POST method allowed", http.StatusMethodNotAllowed)
 		return
@@ -81,21 +87,32 @@ func RegisterAuth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	//TODO: store.NewFirestoreStore()
-
 	//formatting the response to the user, which includes the generated API key and the time of API creation
-	key := key{
-		Key:       createAPI,
+	keyResponse := Key{
+		ApiKey:    createAPI,
 		CreatedAt: timeCreateApi,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(key); err != nil {
+	if err := json.NewEncoder(w).Encode(keyResponse); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
-	fmt.Println("API key generated and sent to user")
 
+	//Stores hashed api in Firestore
+	hashedApiraw := sha256.Sum256([]byte(createAPI))
+	hashedApiString := hex.EncodeToString(hashedApiraw[:])
+	reg := model.Authentication{
+		Name:       login.Name,
+		Email:      login.Email,
+		ApiKeyHash: hashedApiString,
+		CreatedAt:  timeCreateApi,
+	}
+	err = h.store.CreateApiStorage(ctx, reg)
+	if err != nil {
+		http.Error(w, "Failed to save api keys in Firestore", http.StatusInternalServerError)
+		return
+	}
 }
 
 /*

@@ -46,6 +46,24 @@ func (f *Store) ApiKeyExists(ctx context.Context, apiKey string) bool {
 	return true
 }
 
+func (f *Store) CreateApiStorage(ctx context.Context, reg model.Authentication) error {
+	//setts api
+	AllApi := f.client.Collection("all_api_keys").Doc(reg.ApiKeyHash)
+	_, err := AllApi.Set(ctx, map[string]interface{}{
+		"createdAt": reg.CreatedAt,
+	})
+
+	emailDoc := f.client.Collection("authentication_info").Doc(reg.Email)
+	//creating nested api key structure
+	apiDoc := emailDoc.Collection("api_keys").Doc(reg.ApiKeyHash)
+
+	_, err = apiDoc.Set(ctx, reg)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 func (f *Store) GetRegistration(ctx context.Context, id string) (*model.Registration, error) {
 	doc, err := f.client.Collection("registrations").Doc(id).Get(ctx)
 	if err != nil {
