@@ -64,6 +64,22 @@ func (f *Store) CreateApiStorage(ctx context.Context, reg model.Authentication) 
 
 	return nil
 }
+
+func (f *Store) CountApiPerUser(ctx context.Context, email string) (int, error) {
+	//getting info about spesific email
+	EmailDoc := f.client.Collection("authentication_info").Doc(email)
+	//seeing how manny api keys that user hve
+	ApiKeyDoc := EmailDoc.Collection("api_keys")
+
+	doc, err := ApiKeyDoc.Documents(ctx).GetAll()
+	if err != nil {
+		println("NÅ ER NOE GAAALT")
+		return 0, err
+	}
+	fmt.Println("Det er ", len(doc), " hær")
+	return len(doc), nil
+}
+
 func (f *Store) GetRegistration(ctx context.Context, id string) (*model.Registration, error) {
 	doc, err := f.client.Collection("registrations").Doc(id).Get(ctx)
 	if err != nil {

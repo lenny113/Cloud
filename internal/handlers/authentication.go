@@ -2,6 +2,7 @@ package handlers
 
 import (
 	model "assignment-2/internal/models"
+	"assignment-2/internal/utils"
 	//"assignment-2/internal/store"
 	"crypto/md5"    //for generarting hash to create api key
 	"crypto/sha256" //to store a hashed version of api key in database
@@ -61,10 +62,20 @@ func (h *Handler) RegisterAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//check if email contains @, if not, return bad request
+	//check if email is correctly formated (RFC 5322), if not, return bad request
 	if !isValidEmail(login.Email) {
-		fmt.Println("Invalid email format ")
 		http.Error(w, "Invalid email format", http.StatusBadRequest)
+		return
+	}
+
+	//getting how manny api keys the user alreaddy have to confirm is they can make more
+	howMannyApiKeys, err := h.store.CountApiPerUser(ctx, login.Email)
+	if err != nil {
+		http.Error(w, "fault reaching Firestore", http.StatusInternalServerError)
+		return
+	}
+	if (howMannyApiKeys) > utils.MAXAPIKEYS-1 {
+		http.Error(w, "To manny api keys registerd to this user, try deleting one", http.StatusTooManyRequests)
 		return
 	}
 
