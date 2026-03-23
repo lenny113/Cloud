@@ -4,9 +4,10 @@ import (
 	"crypto/md5"   //for generarting hash to create api key
 	"encoding/hex" //for converting md5 hash to string
 	"encoding/json"
-	"fmt"
+	"fmt" //for writing output and testing
 	"net/http"
-	"time" //time of creating api key and for generating unique api key based partly on time hash
+	"net/mail" //for email check (private emails also accepted)
+	"time"     //time of creating api key and for generating unique api key based partly on time hash
 )
 
 type Login struct {
@@ -55,15 +56,9 @@ func RegisterAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//check if email contains @, if not, return bad request
-	isAtValid := false
-	for i := 0; i < len(login.Email); i++ {
-		if login.Email[i] == '@' {
-			isAtValid = true
-			break
-		}
-	}
-	if !isAtValid {
-		http.Error(w, "Invalid email format, no @ found", http.StatusBadRequest)
+	if !isValidEmail(login.Email) {
+		fmt.Println("Invalid email format ")
+		http.Error(w, "Invalid email format", http.StatusBadRequest)
 		return
 	}
 
@@ -85,6 +80,8 @@ func RegisterAuth(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	//TODO: store.NewFirestoreStore()
 
 	//formatting the response to the user, which includes the generated API key and the time of API creation
 	key := key{
@@ -169,4 +166,17 @@ func isAPIKeyUsed(key string) bool {
 	}
 	return false
 
+}
+
+/*
+Checks if the email provided is valid, if so return true
+*/
+func isValidEmail(email string) bool {
+	address, err := mail.ParseAddress(email)
+
+	if err != nil {
+		return false
+	}
+
+	return address != nil
 }
