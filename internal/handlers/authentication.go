@@ -69,7 +69,7 @@ func RegisterAuth(w http.ResponseWriter, r *http.Request) {
 	maxTestAttempts := 10
 	for i := 0; i < maxTestAttempts; i++ {
 		createAPI, timeCreateApi = createAPIKey(login.Email)
-		if !isAPIKeyUsed(createAPI) {
+		if !h.store.ApiKeyExists(ctx, createAPI) {
 			break
 		}
 		//this would only be in the senario where some number breakes the md5 hash or full storage in database
@@ -127,45 +127,6 @@ func createAPIKey(email string) (string, string) {
 	fmt.Println("createAPI:", createAPI)
 
 	return createAPI, timeCreateApi
-}
-
-/*
-@brief This function is used to check if the generated API key is already in use.
-
-If true: the API key is already in use, and a new one should be generated.
-If false: the API key is not in use, and can be used for the user.
-
-This is done by comparing the generated API key to keys on the database.
-Furhermore, this function also checks if the generated API key is empty or incomplete, which is a sign of unsuccessful generation process.
-
-@param key - the API key to check
-@return bool - true if the API key is already in use or incomplete, false otherwise
-*/
-func isAPIKeyUsed(key string) bool {
-	//check if api key is already in use, if so, generate a new one (this is very unlikely, but we want to be sure)
-	usedAPIKey := "sk-envdash-4597dc2d89e56c8e0cde3d3b9f42bdfa" // TODO: change this with firestore after we have finished the firestore handler
-
-	//here we want to check if the generated API key were made or not, if no api key were made, send true
-	if key == "" {
-		//Logging not implemented, but needs to be logged because this should not happen
-		//log.Println("Generated API key is empty")
-		return true
-	}
-	//if only the start of the API key is generated, send true, because this means that the random string part is not generated yet, and this is not a valid API key
-	if key == "sk-envdash-" {
-		//logging waiting for implementation
-		//log.Println("Generated API key is incomplete")
-		return true
-	}
-
-	//when firebase is added this will be where api key is looking for duplicates
-	if key == usedAPIKey {
-		//logging waiting for implementation
-		//log.Println("Generated API key is already in use")
-		return true
-	}
-	return false
-
 }
 
 /*

@@ -29,6 +29,22 @@ func (f *Store) CreateRegistration(ctx context.Context, reg model.Registration) 
 
 	return doc.ID, nil
 }
+func (f *Store) ApiKeyExists(ctx context.Context, apiKey string) bool {
+
+	_, err := f.client.
+		Collection("all_api_keys").
+		Doc(apiKey).
+		Get(ctx)
+
+	if err != nil {
+		//api key cant be found e.g it is unique
+		fmt.Println("Api key cant be found")
+		return false
+	}
+
+	fmt.Println("found api key")
+	return true
+}
 
 func (f *Store) GetRegistration(ctx context.Context, id string) (*model.Registration, error) {
 	doc, err := f.client.Collection("registrations").Doc(id).Get(ctx)
