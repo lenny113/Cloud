@@ -2,10 +2,16 @@ package main
 
 import (
 	handler "assignment-2/internal/handlers"
+	store "assignment-2/internal/store"
 	utils "assignment-2/internal/utils"
+	"context"
+
 	"log"
 	"net/http"
 	"os"
+
+	"cloud.google.com/go/firestore"
+	"google.golang.org/api/option"
 )
 
 func main() {
@@ -39,7 +45,7 @@ func main() {
 
 	router.HandleFunc("/", handler.DefaultHandler)
 	//router.HandleFunc(utils.REGISTRATION_PATH, h.RegistrationHandler)
-	router.HandleFunc(utils.AUTHENTICATION_PATH, handler.RegisterAuth)
+	router.HandleFunc(utils.AUTHENTICATION_PATH, h.RegisterAuth)
 	// Configure the HTTP server with the network address and
 	// the router wrapped in logging middleware.
 	server := http.Server{
