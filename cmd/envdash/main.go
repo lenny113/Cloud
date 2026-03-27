@@ -26,8 +26,12 @@ func main() {
 		defer client.Close()
 
 		st := store.NewFirestoreStore(client)
-		h := handler.NewHandler(st)
 	*/
+
+	restCountriesHTTPClient := utils.NewHttpClient()
+	restCountriesClient := client.NewRestCountriesClient(restCountriesHTTPClient)
+	h := handler.NewHandler(nil, restCountriesClient)
+
 	// Extract PORT variable from the OS environment variables
 	port := os.Getenv("PORT")
 
