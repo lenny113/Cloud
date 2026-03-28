@@ -65,19 +65,56 @@ func (f *Store) CreateApiStorage(ctx context.Context, reg model.Authentication) 
 	return nil
 }
 
-func (f *Store) CountApiPerUser(ctx context.Context, email string) (int, error) {
+func (h *Store) CountApiPerUser(ctx context.Context, email string) (int, error) {
 	//getting info about spesific email
-	EmailDoc := f.client.Collection("authentication_info").Doc(email)
+	EmailDoc := h.client.Collection("authentication_info").Doc(email)
 	//seeing how manny api keys that user hve
 	ApiKeyDoc := EmailDoc.Collection("api_keys")
 
 	doc, err := ApiKeyDoc.Documents(ctx).GetAll()
 	if err != nil {
-		println("NÅ ER NOE GAAALT")
 		return 0, err
 	}
-	fmt.Println("Det er ", len(doc), " hær")
+	//returns length of
 	return len(doc), nil
+}
+
+// TODO write doxygen commenting
+func (f *Store) DeleteAPIkey(ctx context.Context, id string) error {
+	docRef := f.client.Collection("all_api_keys").Doc(id)
+
+	// check if exists
+	docSnap, err := docRef.Get(ctx)
+	if err != nil {
+		return err
+	}
+
+	//Finds mail to this user that this api is registerd under
+	data := docSnap.Data()
+
+	userMail, ok := data["user"].(string)
+	if !ok {
+		//TODO: log this in logg file
+		return fmt.Errorf("Cant get email, user field missing or not a string (Firestore)")
+	}
+
+	//delete api under "ALL_API_KEYS"
+	_, err = docRef.Delete(ctx)
+	if err != nil {
+		return err
+	}
+
+	//now goes to right user, and deletes that API key:
+	userDoc := f.client.Collection("authentication_info").Doc(userMail)
+
+	nestedDocRef := userDoc.Collection("api_keys").Doc(id)
+
+	_, err = nestedDocRef.Delete(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (f *Store) GetRegistration(ctx context.Context, id string) (*model.Registration, error) {

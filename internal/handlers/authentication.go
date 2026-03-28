@@ -169,3 +169,39 @@ func isValidEmail(email string) bool {
 
 	return address != nil
 }
+
+func (h *Handler) DeleteAuth(w http.ResponseWriter, r *http.Request) {
+	//used in handling connection to Firestore
+	ctx := r.Context()
+
+	if r.Method != http.MethodDelete { //if not a DELETE request, return method not allowed
+		http.Error(w, "Only POST method allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	API := r.PathValue("id")
+	APIHashed := hashAPIKey(API)
+	//Checks if api key exists
+	if !h.store.ApiKeyExists(ctx, APIHashed) {
+		http.Error(w, "could not find API key", http.StatusNotFound)
+		return
+	}
+
+	//we have to delete this key in firestore
+	err := h.store.DeleteAPIkey(ctx, APIHashed)
+	if err != nil {
+		http.Error(w, "something went wrong in Firestore, while trying to delete apikey", http.StatusInternalServerError)
+		return
+	}
+
+	//if it goes through, it works
+	w.WriteHeader(http.StatusNoContent)
+
+}
+
+// used for hashing the api key to the database (firestore only have hashed api keys)
+func hashAPIKey(apiKeyUnhashed string) string {
+	apiKeyHashed := sha256.Sum256([]byte(apiKeyUnhashed))
+	apiKeyHashedString := hex.EncodeToString(apiKeyHashed[:])
+	return apiKeyHashedString
+}
