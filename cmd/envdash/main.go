@@ -50,6 +50,9 @@ func main() {
 	router.HandleFunc("/", handler.DefaultHandler)
 	//router.HandleFunc(utils.REGISTRATION_PATH, h.RegistrationHandler)
 	router.HandleFunc(utils.AUTHENTICATION_PATH, h.RegisterAuth)
+	router.HandleFunc(utils.AUTHENTICATION_PATH+"/", h.RegisterAuth)
+	router.HandleFunc(utils.AUTHENTICATION_PATH+"/{id}", h.DeleteAuth)
+	router.HandleFunc(utils.AUTHENTICATION_PATH+"/{id}"+"/", h.DeleteAuth)
 	// Configure the HTTP server with the network address and
 	// the router wrapped in logging middleware.
 	server := http.Server{
