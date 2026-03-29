@@ -16,6 +16,16 @@ import (
 
 func main() {
 
+	ctx := context.Background()
+	client, err := firestore.NewClient(ctx, "cachemea2",
+		option.WithCredentialsFile("../../../firestore_auth.json"),
+	)
+	if err != nil {
+		log.Fatal("Failed to initialize Firestore:", err)
+	}
+	defer client.Close()
+	st := store.NewFirestoreStore(client)
+	h := handler.NewHandler(st)
 	/*
 		ctx := context.Background()
 		//client, err := firestore.NewClient(ctx, "<PROJECT_ID>", ADD PROJECT ID HERTE
