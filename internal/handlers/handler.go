@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"assignment-2/internal/client"
+	"assignment-2/internal/client/restcountries"
 	utils "assignment-2/internal/models"
 	"assignment-2/internal/store"
 	"encoding/json"
@@ -20,6 +20,9 @@ func NewHandler(s *store.Store, restCountriesClient client.RestCountriesClient) 
 	}
 }
 
+func NewFirestoreHandler(s *store.Store) *Handler {
+	return &Handler{store: s}
+}
 func writeJSONError(w http.ResponseWriter, code int, errMsg string) {
 	// Create an instance of the custom error struct
 	response := utils.ErrorResponse{
