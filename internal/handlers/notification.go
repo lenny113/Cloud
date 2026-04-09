@@ -13,7 +13,7 @@ import (
 func (h *Handler) NotificationSpinner(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		h.postRequest(w, r)
+		h.registerNewNotification(w, r)
 	case "GET":
 		h.allNotifications(w, r)
 	default:
@@ -33,7 +33,7 @@ func (h *Handler) NotificationSpinnerById(w http.ResponseWriter, r *http.Request
 
 }
 
-func (h *Handler) postRequest(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) registerNewNotification(w http.ResponseWriter, r *http.Request) {
 
 	if r.Body == nil {
 		http.Error(w, "Please send a request body", http.StatusBadRequest)
@@ -55,6 +55,32 @@ func (h *Handler) postRequest(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, errorMessage, http.StatusBadRequest)
 		return
+	}
+
+	//Only allows threashold field if event is threashold
+	if request.Event != "THRESHOLD" && request.ThresholdNotification != nil {
+		http.Error(w, "Threshold is only allowed when event is THRESHOLD", http.StatusBadRequest)
+		return
+	}
+
+	//checks if notifcation is threashold:
+	if request.Event == "THRESHOLD" {
+		//check if threashold body is present, if not, return an error
+		if request.ThresholdNotification == nil {
+			http.Error(w, "Missing threshold", http.StatusBadRequest)
+			return
+		}
+
+		//reed the threashold body
+		//DELETE?var threshold models.ThresholdNotification
+
+		//validate threashold body for valid values
+		err, errorMessage := validateThreashold(*request.ThresholdNotification)
+		if err != nil {
+			http.Error(w, errorMessage, http.StatusBadRequest)
+			return
+		}
+		request.ThresholdNotification.Field = strings.ToUpper(request.ThresholdNotification.Field) //convert threashold field to uppercase to make it case insensitive
 	}
 
 	//Stores in Firestore
@@ -196,4 +222,31 @@ func (h *Handler) deleteNotification(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNoContent)
 	w.Write([]byte("Notification with id " + id + " successfully deleted"))
+}
+
+func validateThreashold(thresholdStruct models.ThresholdNotification) (error, string) {
+	var errors []string
+
+	//check if threshold body is present
+	if thresholdStruct.Field == "" {
+		errors = append(errors, "Missing threshold body in request")
+	}
+	find := false
+
+	//if threshold body is present, check if the fields are valid
+	for _, validField := range utils.VALIDTHRESHOLDS {
+		if strings.ToUpper(thresholdStruct.Field) == validField {
+			find = true
+			break
+		}
+	}
+	if !find {
+		errors = append(errors, "Invalid threshold type in request body, valid threshold types are: "+strings.Join(utils.VALIDTHRESHOLDS, ", "))
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("validation failed"), strings.Join(errors, ", ")
+	}
+	return nil, ""
+
 }
