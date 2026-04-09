@@ -15,7 +15,7 @@ func (h *Handler) NotificationSpinner(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		h.postRequest(w, r)
 	case "GET":
-		fmt.Println("METHOD GET")
+		h.AllNotifications(w, r)
 	default:
 		http.Error(w, "method is not ok", http.StatusMethodNotAllowed)
 	}
@@ -130,5 +130,22 @@ func validateNotification(request models.RegisterWebhook) (error, string) {
 
 	//If there are no errors, return nil
 	return nil, ""
+
+}
+
+func (h *Handler) AllNotifications(w http.ResponseWriter, r *http.Request) {
+	AllSaved, err := h.store.GetAllNotifications(r.Context())
+	if err != nil {
+		http.Error(w, "Error fetching notifications", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	responseJSON, err := json.MarshalIndent(AllSaved, "", "   ")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(responseJSON)
 
 }

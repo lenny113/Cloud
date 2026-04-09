@@ -12,3 +12,8 @@ type RegisteredWebhookResponse struct {
 	Event   string `json:"event"`
 	Time    string `json:"time"`
 }
+
+type AllRegisteredWebhook struct {
+	Id string `json:"id"`
+	RegisterWebhook
+}
