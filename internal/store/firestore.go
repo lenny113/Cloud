@@ -74,7 +74,7 @@ Apis are currently stored in two different ways:
 		This is donne for effecient lookup (if we letssay have 1 million users this would still work)
 			-Data stored: "time of creation" and "name of api key"
 
-This function hashes api key so no clairtext api key is stored on server
+# This function hashes api key so no clairtext api key is stored on server
 
 This method is part of the Store struct, which holds the Firestore client.
 
@@ -93,6 +93,9 @@ func (f *Store) CreateApiStorage(ctx context.Context, reg model.Authentication) 
 		"time of creation": reg.CreatedAt,
 		"user":             reg.Email,
 	})
+	if err != nil {
+		return err
+	}
 
 	emailDoc := f.client.Collection("authentication_info").Doc(reg.Email)
 	//creating nested api key structure
