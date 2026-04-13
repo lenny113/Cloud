@@ -19,7 +19,8 @@ func (h *Handler) NotificationSpinner(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		h.allNotifications(w, r)
 	default:
-		http.Error(w, "method is not ok", http.StatusMethodNotAllowed)
+		writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		utils.SetMessageForLogger(w, "Method not allowed in NotificationSpinner: "+r.Method)
 	}
 }
 
@@ -30,7 +31,8 @@ func (h *Handler) NotificationSpinnerById(w http.ResponseWriter, r *http.Request
 	case "DELETE":
 		h.deleteNotification(w, r)
 	default:
-		http.Error(w, "method is not ok", http.StatusMethodNotAllowed)
+		writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		utils.SetMessageForLogger(w, "Method not allowed in NotificationSpinnerById: "+r.Method)
 	}
 
 }
@@ -38,7 +40,8 @@ func (h *Handler) NotificationSpinnerById(w http.ResponseWriter, r *http.Request
 func (h *Handler) registerNewNotification(w http.ResponseWriter, r *http.Request) {
 
 	if r.Body == nil {
-		http.Error(w, "Please send a request body", http.StatusBadRequest)
+		utils.SetMessageForLogger(w, "Missing request body in notification registration")
+		writeJSONError(w, http.StatusBadRequest, "Missing request body in notification registration")
 		return
 	}
 
@@ -47,7 +50,8 @@ func (h *Handler) registerNewNotification(w http.ResponseWriter, r *http.Request
 	//checks if json is valid and can be decoded into the struct, if not, it returns an error
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		utils.SetMessageForLogger(w, "Invalid JSON in notification registration")
+		writeJSONError(w, http.StatusBadRequest, "Invalid JSON in notification registration")
 		return
 	}
 	request.Event = strings.ToUpper(request.Event) //convert event to uppercase to make it case insensitive
@@ -55,13 +59,15 @@ func (h *Handler) registerNewNotification(w http.ResponseWriter, r *http.Request
 	//checks if the required fields are present and valid, if not, it returns an error with the specific missing fields
 	err, errorMessage := validateNotification(request)
 	if err != nil {
-		http.Error(w, errorMessage, http.StatusBadRequest)
+		utils.SetMessageForLogger(w, "Invalid request body in notification registration: "+errorMessage)
+		writeJSONError(w, http.StatusBadRequest, "Invalid request body in notification registration: "+errorMessage)
 		return
 	}
 
 	//Only allows threashold field if event is threashold
 	if request.Event != "THRESHOLD" && request.ThresholdNotification != nil {
-		http.Error(w, "Threshold is only allowed when event is THRESHOLD", http.StatusBadRequest)
+		utils.SetMessageForLogger(w, "Threshold is only allowed when event is THRESHOLD")
+		writeJSONError(w, http.StatusBadRequest, "Threshold is only allowed when event is THRESHOLD")
 		return
 	}
 
@@ -69,7 +75,8 @@ func (h *Handler) registerNewNotification(w http.ResponseWriter, r *http.Request
 	if request.Event == "THRESHOLD" {
 		//check if threashold body is present, if not, return an error
 		if request.ThresholdNotification == nil {
-			http.Error(w, "Missing threshold", http.StatusBadRequest)
+			utils.SetMessageForLogger(w, "Missing threshold")
+			writeJSONError(w, http.StatusBadRequest, "Missing threshold")
 			return
 		}
 
@@ -79,7 +86,8 @@ func (h *Handler) registerNewNotification(w http.ResponseWriter, r *http.Request
 		//validate threashold body for valid values
 		err, errorMessage := validateThreashold(*request.ThresholdNotification)
 		if err != nil {
-			http.Error(w, errorMessage, http.StatusBadRequest)
+			utils.SetMessageForLogger(w, "Invalid threshold in notification registration: "+errorMessage)
+			writeJSONError(w, http.StatusBadRequest, "Invalid threshold in notification registration: "+errorMessage)
 			return
 		}
 		request.ThresholdNotification.Field = strings.ToUpper(request.ThresholdNotification.Field) //convert threashold field to uppercase to make it case insensitive
@@ -89,7 +97,7 @@ func (h *Handler) registerNewNotification(w http.ResponseWriter, r *http.Request
 	notificationId, err := h.store.CreateNotification(r.Context(), request)
 	if err != nil {
 		utils.SetMessageForLogger(w, "Error creating notification in Firestore")
-		http.Error(w, "Error creating notification", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "Error creating notification")
 		return
 	}
 	//time created
@@ -107,24 +115,32 @@ func (h *Handler) registerNewNotification(w http.ResponseWriter, r *http.Request
 
 	responseJSON, err := json.MarshalIndent(response, "", "   ")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.SetMessageForLogger(w, "Error marshaling response JSON in notification registration")
+		writeJSONError(w, http.StatusInternalServerError, "Error marshaling response JSON in notification registration")
 		return
 	}
 
 	w.Write(responseJSON)
 
-	sendingWebhook(response.Id, request)
+	err = sendingWebhook(response.Id, request)
+	if err != nil {
+		utils.SetMessageForLogger(w, "Error sending webhook for notification with id "+response.Id)
+		writeJSONError(w, http.StatusInternalServerError, "Error sending webhook for notification with id "+response.Id)
+		return
+	}
+
+	utils.SetMessageForLogger(w, "Notification registered with id "+response.Id)
 
 }
 
 func validateNotification(request models.RegisterWebhook) (error, string) {
 	var errors []string
 
-	//URL check:
 	if request.Url == "" {
-		errors = append(errors, "Missing URL in request body")
+		errors = append(errors, "Missing URL")
+	} else if !strings.HasPrefix(request.Url, "http://") && !strings.HasPrefix(request.Url, "https://") {
+		errors = append(errors, "Invalid URL")
 	}
-	//TODO: add check for valid URL, maybe by using regex or the net/url package
 
 	//country check
 	if request.Country == "" {
@@ -134,7 +150,18 @@ func validateNotification(request models.RegisterWebhook) (error, string) {
 
 	//event check
 	if request.Event == "" {
-		errors = append(errors, "Missing Event in request body")
+		errors = append(errors, "Missing Event in request body, valid events are:"+strings.Join(utils.VALIDEVENTS, ", "))
+	} else {
+		find := false
+		for _, validEvent := range utils.VALIDEVENTS {
+			if strings.ToUpper(request.Event) == validEvent {
+				find = true
+				break
+			}
+		}
+		if !find {
+			errors = append(errors, "Invalid Event in request body, valid events are: "+strings.Join(utils.VALIDEVENTS, ", "))
+		}
 	}
 
 	//if there are any errors, return them as a single string,
@@ -147,16 +174,6 @@ func validateNotification(request models.RegisterWebhook) (error, string) {
 	// and it is more efficient to check for missing fields first before checking for valid events
 
 	//checks if event is one of the supported events
-	find := false
-	for _, validEvent := range utils.VALIDEVENTS {
-		if strings.ToUpper(request.Event) == validEvent {
-			find = true
-			break
-		}
-	}
-	if !find {
-		return fmt.Errorf("validation failed"), "Invalid Event in request body, valid events are: " + strings.Join(utils.VALIDEVENTS, ", ")
-	}
 
 	//If there are no errors, return nil
 	return nil, ""
@@ -166,17 +183,20 @@ func validateNotification(request models.RegisterWebhook) (error, string) {
 func (h *Handler) allNotifications(w http.ResponseWriter, r *http.Request) {
 	AllSaved, err := h.store.GetAllNotifications(r.Context())
 	if err != nil {
-		http.Error(w, "Error fetching notifications", http.StatusInternalServerError)
+		utils.SetMessageForLogger(w, "Error fetching notifications")
+		writeJSONError(w, http.StatusInternalServerError, "Error fetching notifications")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	responseJSON, err := json.MarshalIndent(AllSaved, "", "   ")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.SetMessageForLogger(w, "Error marshaling response JSON in fetching notifications")
+		writeJSONError(w, http.StatusInternalServerError, "Error marshaling response JSON in fetching notifications")
 		return
 	}
 	w.Write(responseJSON)
+	utils.SetMessageForLogger(w, "Fetched all notifications, count: "+fmt.Sprint(len(AllSaved)))
 
 }
 
@@ -184,14 +204,16 @@ func (h *Handler) specificNotification(w http.ResponseWriter, r *http.Request) {
 	//get id from url path
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Missing id in URL path", http.StatusBadRequest)
+		utils.SetMessageForLogger(w, "Missing id in URL path")
+		writeJSONError(w, http.StatusBadRequest, "Missing id in URL path")
 		return
 	}
 
 	notification, err := h.store.GetSpecificNotification(r.Context(), id)
 	if err != nil {
 		//if not found, return 404 error
-		http.Error(w, "Notification not found", http.StatusNotFound)
+		utils.SetMessageForLogger(w, "Notification not found")
+		writeJSONError(w, http.StatusNotFound, "Notification not found")
 		return
 	}
 
@@ -201,7 +223,8 @@ func (h *Handler) specificNotification(w http.ResponseWriter, r *http.Request) {
 	responseJSON, err := json.MarshalIndent(notification, "", "   ")
 	if err != nil {
 		//if there is an error marshaling the response, return 500 error
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.SetMessageForLogger(w, "Error marshaling response JSON in fetching specific notification")
+		writeJSONError(w, http.StatusInternalServerError, "Error marshaling response JSON in fetching specific notification")
 		return
 	}
 
@@ -213,19 +236,23 @@ func (h *Handler) deleteNotification(w http.ResponseWriter, r *http.Request) {
 	//get id from url path
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Missing id in URL path", http.StatusBadRequest)
+		utils.SetMessageForLogger(w, "Missing id in URL path")
+		writeJSONError(w, http.StatusBadRequest, "Missing id in URL path")
 		return
 	}
 	err := h.store.DeleteNotification(r.Context(), id)
 	if err != nil {
 		//if not found, return 404 error
-		http.Error(w, "Notification not found", http.StatusNotFound)
+		utils.SetMessageForLogger(w, "Notification not found")
+		writeJSONError(w, http.StatusNotFound, "Notification not found")
 		return
 	}
+
 	//if deleted successfully, return a success message
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNoContent)
-	w.Write([]byte("Notification with id " + id + " successfully deleted"))
+
+	utils.SetMessageForLogger(w, "Notification with id "+id+" deleted")
 }
 
 func validateThreashold(thresholdStruct models.ThresholdNotification) (error, string) {
@@ -314,14 +341,10 @@ func (h *Handler) CheckWhatNotificationsToSend(ctx context.Context, country stri
 		//utils.SetMessageForLogger(w, "Error fetching notifications from database", err)
 		return
 	}
-	//if len(allNotifications) == 0 {
-	//utils.SetMessageForLogger(w, "No notifications found in database")
-	//	return
-	//}
-
-	fmt.Println("=== DEBUG ===")
-	fmt.Println("Incoming country:", country)
-	fmt.Println("Incoming event:", event)
+	if len(allNotifications) == 0 {
+		utils.SetMessageForLogger(nil, "No notifications found in database")
+		return
+	}
 
 	for _, notification := range allNotifications {
 		fmt.Println("Stored:", notification.Country, notification.Event)
@@ -332,7 +355,11 @@ func (h *Handler) CheckWhatNotificationsToSend(ctx context.Context, country stri
 		eventMatch := notification.Event == event
 
 		if countryMatch && eventMatch {
-			sendingWebhook(notification.Id, notification.RegisterWebhook)
+			err := sendingWebhook(notification.Id, notification.RegisterWebhook)
+			if err != nil {
+				//log.Println("WEBHOOK_SEND_FAIL:", err)
+				return
+			}
 		}
 	}
 }
