@@ -16,7 +16,7 @@ func (h *Handler) RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		h.RegistrationPostHandler(w, r)
-		h.CheckWhatNotificationsToSend(r.Context(), "NO", "REGISTER") //we have to know what country, then send notifications
+		h.CheckLifecycleNotifications(r.Context(), "NO", "REGISTER") //we have to know what country, then send notifications
 
 	case http.MethodGet:
 		h.RegistrationGetHandler(w, r)
@@ -74,7 +74,7 @@ func (h *Handler) RegistrationPostHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	//to send notification that a reg of this country is created
-	h.CheckWhatNotificationsToSend(r.Context(), reg.IsoCode, "REGISTER") //we have to know what country, then send notifications
+	h.CheckLifecycleNotifications(r.Context(), reg.IsoCode, "REGISTER") //we have to know what country, then send notifications
 
 	// addin the last
 	response := map[string]string{
@@ -147,7 +147,7 @@ func (h *Handler) RegistrationGetHandler(w http.ResponseWriter, r *http.Request)
 		}
 
 		//to send notification that a reg of this country is fetched
-		h.CheckWhatNotificationsToSend(r.Context(), registration.IsoCode, "INVOKE") //we have to know what country, then send notifications
+		h.CheckLifecycleNotifications(r.Context(), registration.IsoCode, "INVOKE") //we have to know what country, then send notifications
 
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
@@ -191,7 +191,7 @@ func (h *Handler) UpdateRegistration(w http.ResponseWriter, r *http.Request) {
 	//to send notification that a reg of this country is updated
 	//Must be done after update, if lets sat country is updated
 	//Therefore I am a bit unshure how to handle errors?
-	h.CheckWhatNotificationsToSend(r.Context(), reg.IsoCode, "CHANGE") //we have to know what country, then send notifications
+	h.CheckLifecycleNotifications(r.Context(), reg.IsoCode, "CHANGE") //we have to know what country, then send notifications
 
 	utils.SetMessageForLogger(w, "registration updated "+id)
 	w.Header().Set("Content-Type", "application/json")

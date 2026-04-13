@@ -271,7 +271,7 @@ func validateThreshold(thresholdStruct models.ThresholdNotification) (error, str
 
 }
 
-func sendingWebhook(key string, notification models.RegisterWebhook) error {
+func sendingLifeCycleWebhook(key string, notification models.RegisterWebhook) error {
 
 	//POST METHOD
 	//Containting key,country, event, time
@@ -320,9 +320,9 @@ func sendingWebhook(key string, notification models.RegisterWebhook) error {
 
 }
 
-func (h *Handler) CheckWhatNotificationsToSend(ctx context.Context, country string, event string) {
-	//This function will check if there are any notifications that should be sent based on the event and country of the notification, and if so, it will call the sendingWebhook function to send the notification to the registered webhook URL
-	//This function will be called whenever there is a change in the data, and it will check if there are any notifications that should be sent based on the event and country of the notification, and if so, it will call the sendingWebhook function to send the notification to the registered webhook URL
+func (h *Handler) CheckLifecycleNotifications(ctx context.Context, country string, event string) {
+	//This function will check if there are any notifications that should be sent based on the event and country of the notification, and if so, it will call the sendingLifeCycleWebhook function to send the notification to the registered webhook URL
+	//This function will be called whenever there is a change in the data, and it will check if there are any notifications that should be sent based on the event and country of the notification, and if so, it will call the sendingLifeCycleWebhook function to send the notification to the registered webhook URL
 	var allNotifications []models.AllRegisteredWebhook
 	//get all notifications from the database, and check if there are any that should be sent based on the event and country of the notification, and if so, it will call the sendingWebhook function to send the notification to the registered webhook URL
 	allNotifications, err := h.store.GetAllNotifications(ctx)
@@ -340,13 +340,108 @@ func (h *Handler) CheckWhatNotificationsToSend(ctx context.Context, country stri
 		eventMatch := notification.Event == event
 
 		if countryMatch && eventMatch {
-			err := sendingWebhook(notification.Id, notification.RegisterWebhook)
+			err := sendingLifeCycleWebhook(notification.Id, notification.RegisterWebhook)
 			if err != nil {
-				//log.Println("WEBHOOK_SEND_FAIL:", err)
-				return
+				utils.SetMessageForLogger(nil, "Error sending lifecycle webhook for id "+notification.Id)
+				continue
 			}
 		}
 	}
+}
+
+func (h *Handler) CheckThresholdNotifications(ctx context.Context, country string, measured map[string]float64) {
+	allNotifications, err := h.store.GetAllNotifications(ctx)
+	if err != nil {
+		utils.SetMessageForLogger(nil, "Error fetching notifications from database")
+		return
+	}
+
+	for _, notification := range allNotifications {
+		countryMatch := notification.Country == "" || notification.Country == country
+		eventMatch := notification.Event == "THRESHOLD"
+		threshold := notification.ThresholdNotification
+		if countryMatch && eventMatch && threshold != nil {
+			//check if the measured value meets the threshold condition
+			measuredValue, ok := measured[strings.ToUpper(threshold.Field)]
+			if !ok {
+				utils.SetMessageForLogger(nil, "Measured value for threshold field not found: "+threshold.Field)
+				continue
+			}
+			conditionMet := false
+			switch threshold.Operator {
+			case ">":
+				conditionMet = measuredValue > threshold.Value
+			case "<":
+				conditionMet = measuredValue < threshold.Value
+			case ">=":
+				conditionMet = measuredValue >= threshold.Value
+			case "<=":
+				conditionMet = measuredValue <= threshold.Value
+			case "==":
+				conditionMet = measuredValue == threshold.Value
+			case "!=":
+				conditionMet = measuredValue != threshold.Value
+			default:
+				utils.SetMessageForLogger(nil, "Invalid operator in threshold notification: "+threshold.Operator)
+				continue
+			}
+
+			details := models.ThresholdDetails{
+				Field:          threshold.Field,
+				Operator:       threshold.Operator,
+				ThresholdValue: threshold.Value,
+				MeasuredValue:  measuredValue,
+			}
+			if conditionMet {
+				err := sendThresholdWebhook(notification.Id, notification.Country, notification.Url, details)
+				if err != nil {
+					utils.SetMessageForLogger(nil, "Error sending threshold webhook for id "+notification.Id+": "+err.Error())
+					continue
+				}
+			}
+		}
+	}
+}
+
+func sendThresholdWebhook(id, country, url string, details models.ThresholdDetails) error {
+	payload := map[string]interface{}{
+		"id":      id,
+		"country": country,
+		"event":   "THRESHOLD",
+		"time":    time.Now().Format("20060102 15:04"),
+		"details": map[string]interface{}{
+			"field":         details.Field,
+			"operator":      details.Operator,
+			"threshold":     details.ThresholdValue,
+			"measuredValue": details.MeasuredValue,
+		},
+	}
+	return postWebhook(url, payload)
+}
+
+func postWebhook(url string, payload map[string]interface{}) error {
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("unexpected status code %d", resp.StatusCode)
+	}
+	return nil
 }
 
 func (h *Handler) GetRegWithOnlyIdForNotification(ctx context.Context, id string, event string) {
@@ -358,10 +453,5 @@ func (h *Handler) GetRegWithOnlyIdForNotification(ctx context.Context, id string
 		//utils.SetMessageForLogger(w, "Error fetching registration from database", err)
 		return
 	}
-	h.CheckWhatNotificationsToSend(ctx, registration.IsoCode, event)
+	h.CheckLifecycleNotifications(ctx, registration.IsoCode, event)
 }
-
-//Delete
-//CHANGE
-//INVOKE
-//REGISTER

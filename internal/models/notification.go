@@ -24,3 +24,10 @@ type AllRegisteredWebhook struct {
 	Id string `json:"id"`
 	RegisterWebhook
 }
+
+type ThresholdDetails struct {
+	Field          string  `json:"field"`
+	Operator       string  `json:"operator"`
+	ThresholdValue float64 `json:"threshold"`
+	MeasuredValue  float64 `json:"measuredValue"`
+}
