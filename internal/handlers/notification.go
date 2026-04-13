@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url" //for validating the URL in the notification registration
 	"strings"
 	"time" //for generating time of creation of notification
 )
@@ -44,6 +45,7 @@ func (h *Handler) registerNewNotification(w http.ResponseWriter, r *http.Request
 		writeJSONError(w, http.StatusBadRequest, "Missing request body in notification registration")
 		return
 	}
+	defer r.Body.Close()
 
 	var request models.RegisterWebhook
 
@@ -122,8 +124,6 @@ func (h *Handler) registerNewNotification(w http.ResponseWriter, r *http.Request
 
 	w.Write(responseJSON)
 
-	utils.SetMessageForLogger(w, "Notification registered with id "+response.Id)
-
 }
 
 func validateNotification(request models.RegisterWebhook) (error, string) {
@@ -131,8 +131,11 @@ func validateNotification(request models.RegisterWebhook) (error, string) {
 
 	if request.Url == "" {
 		errors = append(errors, "Missing URL")
-	} else if !strings.HasPrefix(request.Url, "http://") && !strings.HasPrefix(request.Url, "https://") {
-		errors = append(errors, "Invalid URL")
+	} else {
+		_, err := url.ParseRequestURI(request.Url)
+		if err != nil {
+			errors = append(errors, "Invalid URL")
+		}
 	}
 
 	//TODO: add check for valid country, maybe by checking if the country is in the list of countries we have in our database
@@ -247,77 +250,53 @@ func (h *Handler) deleteNotification(w http.ResponseWriter, r *http.Request) {
 func validateThreshold(thresholdStruct models.ThresholdNotification) (error, string) {
 	var errors []string
 
-	//check if threshold body is present
+	// Validate Field
 	if thresholdStruct.Field == "" {
-		errors = append(errors, "Missing threshold body in request")
-	}
-	find := false
-
-	//if threshold body is present, check if the fields are valid
-	for _, validField := range utils.VALIDTHRESHOLDS {
-		if strings.ToUpper(thresholdStruct.Field) == validField {
-			find = true
-			break
+		errors = append(errors, "Missing threshold field in request")
+	} else {
+		found := false
+		for _, validField := range utils.VALIDTHRESHOLDS {
+			if strings.ToUpper(thresholdStruct.Field) == validField {
+				found = true
+				break
+			}
+		}
+		if !found {
+			errors = append(errors, "Invalid threshold field, valid fields are: "+strings.Join(utils.VALIDTHRESHOLDS, ", "))
 		}
 	}
-	if !find {
-		errors = append(errors, "Invalid threshold type in request body, valid threshold types are: "+strings.Join(utils.VALIDTHRESHOLDS, ", "))
+
+	// Validate Operator
+	if thresholdStruct.Operator == "" {
+		errors = append(errors, "Missing threshold operator, valid operators are: "+strings.Join(utils.VALIDOPERATORS, ", "))
+	} else {
+		found := false
+		for _, op := range utils.VALIDOPERATORS {
+			thresholdStruct.Operator = strings.TrimSpace(thresholdStruct.Operator)
+			if thresholdStruct.Operator == op {
+				found = true
+				break
+			}
+		}
+		if !found {
+			errors = append(errors, "Invalid threshold operator, valid operators are: "+strings.Join(utils.VALIDOPERATORS, ", "))
+		}
 	}
 
 	if len(errors) > 0 {
 		return fmt.Errorf("validation failed"), strings.Join(errors, ", ")
 	}
 	return nil, ""
-
 }
 
 func sendingLifeCycleWebhook(key string, notification models.RegisterWebhook) error {
-
-	//POST METHOD
-	//Containting key,country, event, time
-	//If threashold:field, operator,threshold value, and registerd value
-
 	payload := map[string]interface{}{
 		"id":      key,
 		"country": notification.Country,
 		"event":   notification.Event,
 		"time":    time.Now().Format("20060102 15:04"),
 	}
-	if notification.ThresholdNotification != nil {
-		payload["threshold"] = map[string]interface{}{
-			"field":    notification.ThresholdNotification.Field,
-			"operator": notification.ThresholdNotification.Operator,
-			"value":    notification.ThresholdNotification.Value,
-		}
-	}
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		//fmt.Errorf("Error marshaling webhook payload", err)
-		return err
-	}
-
-	//send the POST request to the webhook URL
-	request, err := http.NewRequest(http.MethodPost, notification.Url, bytes.NewBuffer(payloadBytes))
-	if err != nil {
-		//utils.SetMessageForLogger(w, "Error creating POST request for webhook")
-		return err
-	}
-	request.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-
-	resp, err := client.Do(request)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	//if no 200 status code from the webhook url, it was not successful, return an error
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		//utils.SetMessageForLogger(w, fmt.Sprintf("Error sending webhook, received status code %d", resp.StatusCode))
-		return fmt.Errorf("Error sending webhook, received status code %d", resp.StatusCode)
-	}
-	return nil
-
+	return postWebhook(notification.Url, payload)
 }
 
 func (h *Handler) CheckLifecycleNotifications(ctx context.Context, country string, event string) {
@@ -357,7 +336,7 @@ func (h *Handler) CheckThresholdNotifications(ctx context.Context, country strin
 	}
 
 	for _, notification := range allNotifications {
-		countryMatch := notification.Country == "" || notification.Country == country
+		countryMatch := notification.Country == "" || strings.ToUpper(notification.Country) == strings.ToUpper(country)
 		eventMatch := notification.Event == "THRESHOLD"
 		threshold := notification.ThresholdNotification
 		if countryMatch && eventMatch && threshold != nil {
