@@ -16,6 +16,7 @@ func (h *Handler) RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		h.RegistrationPostHandler(w, r)
+		h.CheckWhatNotificationsToSend(r.Context(), "NO", "REGISTER") //we have to know what country, then send notifications
 
 	case http.MethodGet:
 		h.RegistrationGetHandler(w, r)
@@ -71,6 +72,9 @@ func (h *Handler) RegistrationPostHandler(w http.ResponseWriter, r *http.Request
 		writeJSONError(w, http.StatusInternalServerError, "failed to save registration")
 		return
 	}
+
+	//to send notification that a reg of this country is created
+	h.CheckWhatNotificationsToSend(r.Context(), reg.IsoCode, "REGISTER") //we have to know what country, then send notifications
 
 	// addin the last
 	response := map[string]string{
@@ -142,6 +146,9 @@ func (h *Handler) RegistrationGetHandler(w http.ResponseWriter, r *http.Request)
 			utils.SetMessageForLogger(w, err.Error())
 		}
 
+		//to send notification that a reg of this country is fetched
+		h.CheckWhatNotificationsToSend(r.Context(), registration.IsoCode, "INVOKE") //we have to know what country, then send notifications
+
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		enc.Encode(registration)
@@ -180,6 +187,12 @@ func (h *Handler) UpdateRegistration(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusNotFound, "Registration not found "+id)
 		return
 	}
+
+	//to send notification that a reg of this country is updated
+	//Must be done after update, if lets sat country is updated
+	//Therefore I am a bit unshure how to handle errors?
+	h.CheckWhatNotificationsToSend(r.Context(), reg.IsoCode, "CHANGE") //we have to know what country, then send notifications
+
 	utils.SetMessageForLogger(w, "registration updated "+id)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -193,6 +206,12 @@ func (h *Handler) DeleteRegistration(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "Missing id")
 		return
 	}
+
+	//Send notification that a reg of this country is deleted
+	//Must be done before deletion, to know what country it is
+	//Therefore I am a bit unshure how to handle errors?
+	h.GetRegWithOnlyIdForNotification(r.Context(), id, "DELETE") //we have to know what country, then send notifications
+
 	err := h.store.DeleteRegistration(r.Context(), id)
 	if err != nil {
 		utils.SetMessageForLogger(w, err.Error())

@@ -3,7 +3,8 @@ package handlers
 import (
 	"assignment-2/internal/models"
 	"assignment-2/internal/utils"
-	"bytes" //for sending the payload in the POST request to the webhook URL
+	"bytes"   //for sending the payload in the POST request to the webhook URL
+	"context" //for handling context in the checkWhatNotificationsToSend function
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -111,6 +112,8 @@ func (h *Handler) registerNewNotification(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Write(responseJSON)
+
+	sendingWebhook(response.Id, request)
 
 }
 
@@ -252,7 +255,7 @@ func validateThreashold(thresholdStruct models.ThresholdNotification) (error, st
 
 }
 
-func sendingWebhook(key string, notification models.RegisterWebhook) {
+func sendingWebhook(key string, notification models.RegisterWebhook) error {
 
 	//POST METHOD
 	//Containting key,country, event, time
@@ -274,28 +277,79 @@ func sendingWebhook(key string, notification models.RegisterWebhook) {
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		//fmt.Errorf("Error marshaling webhook payload", err)
-		return
+		return err
 	}
 
 	//send the POST request to the webhook URL
 	request, err := http.NewRequest(http.MethodPost, notification.Url, bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		//utils.SetMessageForLogger(w, "Error creating POST request for webhook")
-		return
+		return err
 	}
 	request.Header.Set("Content-Type", "application/json")
 	client := &http.Client{}
 
 	resp, err := client.Do(request)
 	if err != nil {
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	//if no 200 status code from the webhook url, it was not successful, return an error
 	if resp.StatusCode != 200 {
 		//utils.SetMessageForLogger(w, fmt.Sprintf("Error sending webhook, received status code %d", resp.StatusCode))
-		return
+		return fmt.Errorf("Error sending webhook, received status code %d", resp.StatusCode)
 	}
+	return nil
 
 }
+
+func (h *Handler) CheckWhatNotificationsToSend(ctx context.Context, country string, event string) {
+	//This function will check if there are any notifications that should be sent based on the event and country of the notification, and if so, it will call the sendingWebhook function to send the notification to the registered webhook URL
+	//This function will be called whenever there is a change in the data, and it will check if there are any notifications that should be sent based on the event and country of the notification, and if so, it will call the sendingWebhook function to send the notification to the registered webhook URL
+	var allNotifications []models.AllRegisteredWebhook
+	//get all notifications from the database, and check if there are any that should be sent based on the event and country of the notification, and if so, it will call the sendingWebhook function to send the notification to the registered webhook URL
+	allNotifications, err := h.store.GetAllNotifications(ctx)
+	if err != nil {
+		//utils.SetMessageForLogger(w, "Error fetching notifications from database", err)
+		return
+	}
+	//if len(allNotifications) == 0 {
+	//utils.SetMessageForLogger(w, "No notifications found in database")
+	//	return
+	//}
+
+	fmt.Println("=== DEBUG ===")
+	fmt.Println("Incoming country:", country)
+	fmt.Println("Incoming event:", event)
+
+	for _, notification := range allNotifications {
+		fmt.Println("Stored:", notification.Country, notification.Event)
+	}
+
+	for _, notification := range allNotifications {
+		countryMatch := notification.Country == "" || notification.Country == country
+		eventMatch := notification.Event == event
+
+		if countryMatch && eventMatch {
+			sendingWebhook(notification.Id, notification.RegisterWebhook)
+		}
+	}
+}
+
+func (h *Handler) GetRegWithOnlyIdForNotification(ctx context.Context, id string, event string) {
+	//This function will be called right before a registration is deleted
+
+	//first it gets what country this registration is for
+	registration, err := h.store.GetRegistration(ctx, id)
+	if err != nil {
+		//utils.SetMessageForLogger(w, "Error fetching registration from database", err)
+		return
+	}
+	h.CheckWhatNotificationsToSend(ctx, registration.IsoCode, event)
+}
+
+//Delete
+//CHANGE
+//INVOKE
+//REGISTER
