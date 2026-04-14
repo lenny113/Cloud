@@ -1,12 +1,15 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/time/rate"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type RestCountriesClient interface {
@@ -14,11 +17,13 @@ type RestCountriesClient interface {
 }
 type restCountriesClient struct {
 	httpClient *http.Client
+	limiter    *rate.Limiter
 }
 
 func NewRestCountriesClient(httpClient *http.Client) RestCountriesClient {
 	return &restCountriesClient{
 		httpClient: httpClient,
+		limiter:    rate.NewLimiter(rate.Every(1*time.Second), 1),
 	}
 }
 
@@ -36,6 +41,7 @@ type RestCountries_InformationRequest struct {
 	Population  bool   `json:"population"`
 	Area        bool   `json:"area"`
 	Borders     bool   `json:"borders"`
+	Currency    bool   `json:"currency"`
 }
 
 // the json we expect to recieve from the restcountries API request
@@ -51,6 +57,10 @@ type RestCountries_EXT_ISO struct {
 	Population int64     `json:"population"`
 	Area       float64   `json:"area"`
 	Borders    []string  `json:"borders"`
+	Currencies map[string]struct {
+		Name   string `json:"name"`
+		Symbol string `json:"symbol"`
+	} `json:"currencies"`
 }
 
 // when reqeusting using name, we recieve a slice instead of a json object, so this variable is needed to handle
@@ -66,6 +76,7 @@ type RestCountries_INT_Response struct {
 	Population  *int64
 	Area        *float64
 	Borders     *[]string
+	Currencies  *[]string
 }
 
 /*
@@ -82,6 +93,7 @@ const (
 	population  = "population"
 	area        = "area"
 	borders     = "borders"
+	currencies  = "currencies"
 
 	iso_query  = "/alpha/"
 	name_query = "/name/"
@@ -102,6 +114,10 @@ func (c *restCountriesClient) GetCountryInfo(req RestCountries_InformationReques
 	// TODO: see if we can decouple the request here somehow.
 	// TODO: add more robust error handling, we should inspect the error and return an appropriate http request.
 	// Right now we only forward the error returned from a get request.
+	if err := c.limiter.Wait(context.Background()); err != nil {
+		return RestCountries_INT_Response{}, err
+	}
+
 	resp, err := c.httpClient.Get(fullURL)
 	if err != nil {
 		return RestCountries_INT_Response{}, err
@@ -139,7 +155,7 @@ func buildURL(req RestCountries_InformationRequest) (string, bool, error) {
 		return "", false, fmt.Errorf("missing required identifier: isoCode or baseCountry")
 	}
 
-	if !req.CCA2 && !req.Name && !req.Capital && !req.Coordinates && !req.Population && !req.Area && !req.Borders {
+	if !req.CCA2 && !req.Name && !req.Capital && !req.Coordinates && !req.Population && !req.Area && !req.Borders && !req.Currency {
 		// TODO: add logger here
 		return "", false, fmt.Errorf("a request for no information was made")
 	}
@@ -166,6 +182,9 @@ func buildURL(req RestCountries_InformationRequest) (string, bool, error) {
 	}
 	if req.Borders {
 		fields = append(fields, borders)
+	}
+	if req.Currency {
+		fields = append(fields, currencies)
 	}
 
 	path += "?fields=" + strings.Join(fields, ",")
@@ -199,6 +218,13 @@ func decodeRESTCountriesResponse(body []byte, askedUsingISO bool) (RestCountries
 	result.Area = &src.Area
 	if len(src.Borders) > 0 {
 		result.Borders = &src.Borders
+	}
+	if len(src.Currencies) > 0 {
+		codes := make([]string, 0, len(src.Currencies))
+		for code := range src.Currencies {
+			codes = append(codes, code)
+		}
+		result.Currencies = &codes
 	}
 
 	return result, nil
