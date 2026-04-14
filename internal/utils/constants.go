@@ -1,11 +1,16 @@
 package utils
 
 const VERSION = "v1"
-const REGISTRATION_PATH = "/envdash/" + VERSION + "/registrations/"
-const STATUS_PATH = "/envdash/" + VERSION + "/status"
+const REGISTRATION_PATH =   "/envdash/" + VERSION + "/registrations/"
+const STATUS_PATH = 		"/envdash/" + VERSION + "/status"
 const AUTHENTICATION_PATH = "/envdash/" + VERSION + "/auth"
+const NOTIFICATION_PATH = 	"/envdash/" + VERSION + "/notifications"
+
+//Authentication
 const MAXAPIKEYS = 5
-const NOTIFICATION_PATH = "/envdash/" + VERSION + "/notifications"
+const MAXATTEMPTSFORKEYGENERATION = 10
+const STARTOFUSERAPI = "sk-envdash-"
+
 
 //notifications
 var VALIDEVENTS []string = []string{"REGISTER", "CHANGE", "DELETE", "INVOKE", "THRESHOLD"}

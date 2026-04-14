@@ -156,6 +156,9 @@ func (f *FireStore) CreateApiStorage(ctx context.Context, reg model.Authenticati
 		"time of creation": reg.CreatedAt,
 		"user":             reg.Email,
 	})
+	if err != nil {
+		return err
+	}
 
 	emailDoc := f.client.Collection("users").Doc(reg.Email)
 	//creating nested api key structure
