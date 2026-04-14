@@ -1,20 +1,28 @@
 package handlers
 
 import (
+	"assignment-2/internal/client/restcountries"
+	utils "assignment-2/internal/models"
 	"assignment-2/internal/store"
-	utils "assignment-2/utils/models"
 	"encoding/json"
 	"net/http"
 )
 
 type Handler struct {
-	store *store.Store
+	store               store.FireStore // firestore
+	restCountriesClient client.RestCountriesClient
 }
 
-func NewHandler(s *store.Store) *Handler {
-	return &Handler{store: s}
+func NewHandler(s store.FireStore, restCountriesClient client.RestCountriesClient) *Handler {
+	return &Handler{
+		store:               s,
+		restCountriesClient: restCountriesClient,
+	}
 }
 
+func NewFirestoreHandler(s *store.FireStore) *Handler {
+	return &Handler{store: *s}
+}
 func writeJSONError(w http.ResponseWriter, code int, errMsg string) {
 	// Create an instance of the custom error struct
 	response := utils.ErrorResponse{
