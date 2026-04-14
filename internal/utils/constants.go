@@ -9,3 +9,4 @@ const NOTIFICATION_PATH = "/envdash/" + VERSION + "/notifications"
 //notifications
 var VALIDEVENTS []string = []string{"REGISTER", "CHANGE", "DELETE", "INVOKE", "THRESHOLD"}
 var VALIDTHRESHOLDS []string = []string{"PM25", "PM10", "TEMPERATURE", "PRECIPITATION"}
+var VALIDOPERATORS []string = []string{">", "<", ">=", "<=", "=="}

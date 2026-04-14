@@ -21,7 +21,7 @@ func (h *Handler) NotificationSpinner(w http.ResponseWriter, r *http.Request) {
 		h.allNotifications(w, r)
 	default:
 		writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
-		utils.SetMessageForLogger(w, utils.LOG_NOTIFICATION+"Method not allowed in NotificationSpinner: "+r.Method)
+		utils.SetMessageForLogger(w, "Method not allowed in NotificationSpinner: "+r.Method)
 	}
 }
 
