@@ -2,6 +2,7 @@ package utils
 
 const VERSION = "v1"
 const REGISTRATION_PATH = "/envdash/" + VERSION + "/registrations/"
+const STATUS_PATH = "/envdash/" + VERSION + "/status"
 const AUTHENTICATION_PATH = "/envdash/" + VERSION + "/auth"
 const MAXAPIKEYS = 5
 

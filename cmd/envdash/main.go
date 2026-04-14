@@ -1,11 +1,16 @@
 package main
 
 import (
+	currencyclient "assignment-2/internal/client/currency"
+	aqclient "assignment-2/internal/client/openaq"
+	weatherclient "assignment-2/internal/client/openmeteo"
+	countryclient "assignment-2/internal/client/restcountries"
 	handler "assignment-2/internal/handlers"
 	store "assignment-2/internal/store"
 	utils "assignment-2/internal/utils"
 	"context"
 	"strings"
+	"time"
 
 	"log"
 	"net/http"
@@ -17,6 +22,7 @@ import (
 
 func main() {
 
+	startedAt := time.Now() // starts the timer
 	ctx := context.Background()
 
 	credFile := os.Getenv("FIREBASE_CREDENTIALS_FILE")
@@ -39,6 +45,24 @@ func main() {
 	defer client.Close()
 	st := store.NewFirestoreStore(client)
 	h := handler.NewFirestoreHandler(st)
+
+	httpClient := utils.NewHttpClient()
+
+	countryClient := countryclient.NewRestCountriesClient(httpClient)
+	weatherClient := weatherclient.NewWeatherClient(httpClient)
+	currencyClient := currencyclient.NewCurrencyClient(httpClient)
+
+	aqClient := aqclient.NewOpenAQClient(httpClient, openAQAPIKey)
+
+	statusHandler := handler.NewStatusHandler(
+		countryClient,
+		weatherClient,
+		aqClient,
+		currencyClient,
+		nil, // keep notification/webhook plumbing as skeletons for now
+		startedAt,
+	)
+
 	/*
 		ctx := context.Background()
 		//client, err := firestore.NewClient(ctx, "<PROJECT_ID>", ADD PROJECT ID HERTE
@@ -73,14 +97,19 @@ func main() {
 	router := http.NewServeMux()
 
 	router.HandleFunc("/", handler.DefaultHandler)
-	//router.HandleFunc(utils.REGISTRATION_PATH, h.RegistrationHandler)
+
+	router.HandleFunc(utils.STATUS_PATH, statusHandler.GetStatus)
+	router.HandleFunc(utils.STATUS_PATH+"/", statusHandler.GetStatus)
+
 	router.HandleFunc(utils.AUTHENTICATION_PATH, h.RegisterAuth)
 	router.HandleFunc(utils.AUTHENTICATION_PATH+"/", h.RegisterAuth)
 	router.HandleFunc(utils.AUTHENTICATION_PATH+"/{id}", h.DeleteAuth)
 	router.HandleFunc(utils.AUTHENTICATION_PATH+"/{id}"+"/", h.DeleteAuth)
+
 	// Configure the HTTP server with the network address and
 	// the router wrapped in logging middleware.
 	router.HandleFunc(utils.REGISTRATION_PATH, h.RegistrationHandler)
+
 	server := http.Server{
 		Addr:    ":" + port,
 		Handler: utils.Logging(router),
