@@ -612,3 +612,25 @@ func (f *FireStore) DeleteNotification(ctx context.Context, id string, apiKey st
 	//if no error, notification is deleted in both places, return nil
 	return nil
 }
+
+func (f *FireStore) DB_Status(ctx context.Context) bool {
+	colelction := f.client.Collection("healthcheck")
+
+	_, err := colelction.Documents(ctx).GetAll()
+	if err != nil {
+		return false
+	}
+	//returns tue, the collection exists (only uesed for healthcheck)
+	return true
+}
+
+func (f *FireStore) CountFirestore(ctx context.Context, collection string) (int, error) {
+	colelctionPlacement := f.client.Collection(collection)
+
+	doc, err := colelctionPlacement.Documents(ctx).GetAll()
+	if err != nil {
+		return 0, err
+	}
+	//returns length of
+	return len(doc), nil
+}

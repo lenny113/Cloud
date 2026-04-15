@@ -59,7 +59,7 @@ func main() {
 		weatherClient,
 		aqClient,
 		currencyClient,
-		nil, // keep notification/webhook plumbing as skeletons for now
+		st, // keep notification/webhook plumbing as skeletons for now
 		startedAt,
 	)
 
