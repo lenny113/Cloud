@@ -235,7 +235,6 @@ func (h *Handler) RegistrationGetHandler(w http.ResponseWriter, r *http.Request)
 		}
 
 		//to send notification that a reg of this country is fetched
-		h.CheckLifecycleNotifications(r.Context(), registration.IsoCode, "INVOKE") //we have to know what country, then send notifications
 
 		enc := json.NewEncoder(w)
 
@@ -316,7 +315,7 @@ func (h *Handler) RegistrationPutHandler(w http.ResponseWriter, r *http.Request)
 	//Encoding the new registration for the user
 	json.NewEncoder(w).Encode(reg)
 	//Sending lifecycle notification for update of registration, we have to know the country of the registration to send the correct notifications
-	h.CheckLifecycleNotifications(r.Context(), reg.IsoCode, "UPDATE")
+	h.CheckLifecycleNotifications(r.Context(), reg.IsoCode, "CHANGE")
 }
 
 // RegistrationDeleteHandler handles the deletion of a registration with a given id
