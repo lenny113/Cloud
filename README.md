@@ -195,6 +195,42 @@ From docker we get golang version etc
 
  
 ## Deployment
+
+### Prerequisites:
+
+
+Get yourself credentials from openAQ
+totorial:
+get yourself credentials from Forestore
+
+### DOCKER:
+Download docker on your VM
+Totorial
+
+On your VM:totorial:
+
+
+
+Clone Repository:
+git clone https://github.com/lenny113/Cloud.git
+
+cd Cloud
+
+nano firestore_auth.json
+Print you Firestore credentials in here
+
+docker compose up --build -d
+
+You are now hosting your weather service!
+
+
+### Local PC
+
+
+docker build -t envdash .
+
+
+
 You will need two credentials:
 Open AQ API key: https://docs.openaq.org/
 Firestore credentials: 
