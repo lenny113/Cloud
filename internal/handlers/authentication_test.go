@@ -72,7 +72,7 @@ func TestRegisterAuth(t *testing.T) {
 			body:   requestBody{Name: "Alice", Email: "alice@example.com"},
 			store: &MockStore{
 				CountApiPerUserFn:  func(_ context.Context, _ string) (int, error) { return 0, nil },
-				ApiKeyExistsFn:     func(_ context.Context, _ string) bool { return false },
+				ApiKeyExistsFn:     func(ctx context.Context, key string) bool { return key == "valid" },
 				CreateApiStorageFn: func(_ context.Context, _ model.Authentication) error { return nil },
 			},
 			wantStatusCode: http.StatusCreated,

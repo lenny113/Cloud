@@ -48,23 +48,31 @@ func main() {
 	}
 
 	defer client.Close()
-	st := store.NewFirestoreStore(client)
-	h := handler.NewFirestoreHandler(st)
 
 	httpClient := utils.NewHttpClient()
 
 	countryClient := countryclient.NewRestCountriesClient(httpClient)
 	weatherClient := weatherclient.NewWeatherClient(httpClient)
 	currencyClient := currencyclient.NewCurrencyClient(httpClient)
-
 	aqClient := aqclient.NewOpenAQClient(httpClient, openAQAPIKey)
+
+	cache := store.InitializeCache(
+		countryClient,
+		weatherClient,
+		currencyClient,
+		aqClient,
+	)
+
+	defer client.Close()
+	st := store.NewFirestoreStore(client)
+	h := handler.NewFirestoreHandler(st, cache)
 
 	statusHandler := handler.NewStatusHandler(
 		countryClient,
 		weatherClient,
 		aqClient,
 		currencyClient,
-		st, // keep notification/webhook plumbing as skeletons for now
+		st,
 		startedAt,
 	)
 

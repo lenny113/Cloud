@@ -161,13 +161,14 @@ func probeCurrencyAPI(client currencyclient.CurrencyClient) int {
 }
 
 func (h *StatusHandler) probeNotificationDB(ctx context.Context) int {
-	// TODO: implement real notification database probe
-	status := h.store.DB_Status(ctx)
-	if !status {
+	if h.store == nil {
 		return http.StatusInternalServerError
-	} else {
-		return http.StatusOK
 	}
+
+	if !h.store.DB_Status(ctx) {
+		return http.StatusInternalServerError
+	}
+	return http.StatusOK
 }
 
 func (h *StatusHandler) count(ctx context.Context, collection string) int {
