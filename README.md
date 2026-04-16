@@ -34,7 +34,7 @@ TODO Add links
 ## Project structure 
 This section outlines the base structure of the project, details about the implementation of these components are in the docs folder: [docs](./docs).
 In the docs folder we will also discuss tradeoffs and the like, if you are evaluating the project for a grade, you should definitely  check it out. 
-
+```
 assignment-2/
 ├── .gitignore
 ├── .gitmessage
@@ -106,6 +106,7 @@ assignment-2/
         ├── constants.go
         ├── http.go
         └── logger.go
+```
 
 ### cmd
 cmd contains the main.go file for running the project
