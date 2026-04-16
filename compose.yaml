@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-8080}:${PORT:-8080}"
+
+    env_file:
+      - .env
+
+    secrets:
+      - Firebase
+
+secrets:
+  Firebase:
+    file: ./firestore_auth.json

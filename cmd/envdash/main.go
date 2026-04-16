@@ -25,23 +25,28 @@ func main() {
 	startedAt := time.Now() // starts the timer
 	ctx := context.Background()
 
-	credFile := os.Getenv("FIREBASE_CREDENTIALS_FILE")
+	credPath := os.Getenv("FIREBASE_CREDENTIALS_FILE")
+	if credPath == "" {
+		//For docker deployment
+		credPath = "/run/secrets/Firebase"
+	}
 
-	if !fileExists(credFile) {
-		log.Panic("Firebase credentials file not found or not mounted")
+	if !fileExists(credPath) {
+		log.Fatal("Firebase credentials file not found at: " + credPath)
 	}
 
 	openAQAPIKey := os.Getenv("OPENAQ_API_KEY")
 	if strings.TrimSpace(openAQAPIKey) == "" {
-		log.Panic("OPENAQ_API_KEY is not set")
+		log.Fatal("OPENAQ_API_KEY is not set")
 	}
 
 	client, err := firestore.NewClient(ctx, "cachemea2",
-		option.WithCredentialsFile(credFile),
+		option.WithCredentialsFile(credPath),
 	)
 	if err != nil {
 		log.Fatal("Failed to initialize Firestore:", err)
 	}
+
 	defer client.Close()
 	st := store.NewFirestoreStore(client)
 	h := handler.NewFirestoreHandler(st)
@@ -62,24 +67,6 @@ func main() {
 		st, // keep notification/webhook plumbing as skeletons for now
 		startedAt,
 	)
-
-	/*
-		ctx := context.Background()
-		//client, err := firestore.NewClient(ctx, "<PROJECT_ID>", ADD PROJECT ID HERTE
-		//	option.WithCredentialsFile(<CREDENTIALS_FILE>)) ADD CREDENTIALS FILE HERE
-		if err != nil {
-			log.Fatal("Failed to initialize Firestore:", err)
-		}
-		defer client.Close()
-
-		st := store.NewFirestoreStore(client)
-	*/
-	/*
-		restCountriesHTTPClient := utils.NewHttpClient()
-		restCountriesClient := client.NewRestCountriesClient(restCountriesHTTPClient)
-		h := handler.NewHandler(nil, restCountriesClient)
-		openAQClient := aqclient.NewOpenAQClient(httpClient, openAQAPIKey)
-	*/
 
 	// Extract PORT variable from the OS environment variables
 	port := os.Getenv("PORT")
