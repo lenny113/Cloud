@@ -3,7 +3,8 @@ package handlers
 import (
 	model "assignment-2/internal/models"
 	"assignment-2/internal/utils"
-	"crypto/md5"   //for generarting hash to create api key
+	"crypto/md5" //for generarting hash to create api key
+	"crypto/rand"
 	"encoding/hex" //for converting md5 hash to string
 	"encoding/json"
 	"net/http"
@@ -159,10 +160,16 @@ func createAPIKey(email string) (string, string) {
 
 	timeCreateApi := time.Now().Format("20060102 15:04") //this is the format specified in the assignement for time
 
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		panic(err) // eller håndter bedre
+	}
+
 	// Generate hash of email + current time using md5
 	//this will be used as the api key for the user, and will be unique for each registration
 	//unique even, even same email cant make same key, because of the time component
-	hash := md5.Sum([]byte(email + time.Now().String()))
+	hash := md5.Sum([]byte(email + time.Now().String() + hex.EncodeToString(b)))
 	hashString := hex.EncodeToString(hash[:])
 	createAPI := utils.STARTOFUSERAPI + hashString
 
