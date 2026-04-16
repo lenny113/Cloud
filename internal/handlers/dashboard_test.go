@@ -15,11 +15,11 @@ const dashBase = "/envdash/v1/dashboards/"
 // --- Mock Cache ---
 
 type mockCache struct {
-	response store.CacheResponse
+	response *store.CacheResponse
 	err      error
 }
 
-func (m *mockCache) RequestFromCache(_ store.CacheExternalRequest) (store.CacheResponse, error) {
+func (m *mockCache) RequestFromCache(_ store.CacheExternalRequest) (*store.CacheResponse, error) {
 	return m.response, m.err
 }
 
@@ -128,7 +128,7 @@ func TestDashboardsGetHandler_Success(t *testing.T) {
 	seedRegistration(t, ms, models.Registration{Country: "Norway", IsoCode: "NO"})
 
 	c := &mockCache{
-		response: store.CacheResponse{
+		response: &store.CacheResponse{
 			CountryName: strPtr("Norway"),
 			CountryCCA2: strPtr("NO"),
 		},
@@ -164,7 +164,7 @@ func TestDashboardsGetHandler_ContentTypeJSON(t *testing.T) {
 	seedRegistration(t, ms, models.Registration{Country: "Norway", IsoCode: "NO"})
 
 	c := &mockCache{
-		response: store.CacheResponse{
+		response: &store.CacheResponse{
 			CountryName: strPtr("Norway"),
 			CountryCCA2: strPtr("NO"),
 		},
@@ -193,7 +193,7 @@ func TestDashboardsGetHandler_AirQualityIncluded(t *testing.T) {
 	})
 
 	c := &mockCache{
-		response: store.CacheResponse{
+		response: &store.CacheResponse{
 			CountryName: strPtr("Norway"),
 			CountryCCA2: strPtr("NO"),
 			MeanPM25:    floatPtr(10.0),
@@ -226,7 +226,7 @@ func TestDashboardsGetHandler_AirQualityOmitted(t *testing.T) {
 	seedRegistration(t, ms, models.Registration{Country: "Norway", IsoCode: "NO"})
 
 	c := &mockCache{
-		response: store.CacheResponse{
+		response: &store.CacheResponse{
 			CountryName: strPtr("Norway"),
 			CountryCCA2: strPtr("NO"),
 		},
@@ -252,7 +252,7 @@ func TestDashboardsGetHandler_OnlyPM25(t *testing.T) {
 	seedRegistration(t, ms, models.Registration{Country: "Norway", IsoCode: "NO"})
 
 	c := &mockCache{
-		response: store.CacheResponse{
+		response: &store.CacheResponse{
 			CountryName: strPtr("Norway"),
 			CountryCCA2: strPtr("NO"),
 			MeanPM25:    floatPtr(5.0),

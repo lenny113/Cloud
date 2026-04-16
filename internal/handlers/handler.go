@@ -28,7 +28,7 @@ type StoreInterface interface {
 
 // CacheInterface allows both *store.Cache and mockCache to be used interchangeably.
 type CacheInterface interface {
-	RequestFromCache(req store.CacheExternalRequest) (store.CacheResponse, error)
+	RequestFromCache(req store.CacheExternalRequest) (*store.CacheResponse, error)
 }
 
 type Handler struct {
