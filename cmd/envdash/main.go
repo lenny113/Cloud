@@ -1,6 +1,10 @@
 package main
 
 import (
+	currencyclient "assignment-2/internal/client/currency"
+	aqclient "assignment-2/internal/client/openaq"
+	weatherclient "assignment-2/internal/client/openmeteo"
+	countryclient "assignment-2/internal/client/restcountries"
 	handler "assignment-2/internal/handlers"
 	store "assignment-2/internal/store"
 	utils "assignment-2/internal/utils"
@@ -33,12 +37,27 @@ func main() {
 	client, err := firestore.NewClient(ctx, "cachemea2",
 		option.WithCredentialsFile(credFile),
 	)
+
+	httpClient := utils.NewHttpClient()
+
+	countryClient := countryclient.NewRestCountriesClient(httpClient)
+	weatherClient := weatherclient.NewWeatherClient(httpClient)
+	currencyClient := currencyclient.NewCurrencyClient(httpClient)
+	aqClient := aqclient.NewOpenAQClient(httpClient, openAQAPIKey)
+
+	cache := store.InitializeCache(
+		countryClient,
+		weatherClient,
+		currencyClient,
+		aqClient,
+	)
+
 	if err != nil {
 		log.Fatal("Failed to initialize Firestore:", err)
 	}
 	defer client.Close()
 	st := store.NewFirestoreStore(client)
-	h := handler.NewFirestoreHandler(st)
+	h := handler.NewFirestoreHandler(st, cache)
 	/*
 		ctx := context.Background()
 		//client, err := firestore.NewClient(ctx, "<PROJECT_ID>", ADD PROJECT ID HERTE
@@ -73,14 +92,14 @@ func main() {
 	router := http.NewServeMux()
 
 	router.HandleFunc("/", handler.DefaultHandler)
-	//router.HandleFunc(utils.REGISTRATION_PATH, h.RegistrationHandler)
+	router.HandleFunc(utils.REGISTRATION_PATH, h.RegistrationHandler)
 	router.HandleFunc(utils.AUTHENTICATION_PATH, h.RegisterAuth)
 	router.HandleFunc(utils.AUTHENTICATION_PATH+"/", h.RegisterAuth)
 	router.HandleFunc(utils.AUTHENTICATION_PATH+"/{id}", h.DeleteAuth)
 	router.HandleFunc(utils.AUTHENTICATION_PATH+"/{id}"+"/", h.DeleteAuth)
+	router.HandleFunc(utils.DASHBOARD_PATH, h.DashboardHandler)
 	// Configure the HTTP server with the network address and
 	// the router wrapped in logging middleware.
-	router.HandleFunc(utils.REGISTRATION_PATH, h.RegistrationHandler)
 	server := http.Server{
 		Addr:    ":" + port,
 		Handler: utils.Logging(router),
