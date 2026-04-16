@@ -11,7 +11,7 @@ envdash is a REST API service designed to provide airquality and general informa
 This code was developed by:
 TODO
 * [Bror Wetlesen Vedeld] [@[BroVed]]([profile-link])
-* [Your Name] [@[username]]([profile-link])
+* [Lennart Krogh] [@[Lennart]]([profile-link])
 * [Your Name] [@[username]]([profile-link])
 
 ## Features
@@ -152,37 +152,74 @@ Must be connected to NTNU Internal Network to access.
     - **Description:** Services are containerized using Docker Compose to facilitate easy deployment and scaling.
 
 ## API Reference / Documentation
-
 <details>
-<summary><h4>Register as a user to receive an API key:</h4></summary>
+<summary> <h2> Acquire Api Key </h2> </summary>
 
-```http
-[METHOD] /path/to/endpoint
-```
+Simply **POST** your name and email in JSON format to `/envdash/v1/auth/`
 
-| Parameter / Header | Type     | Description                          |
-| :----------------- | :------- | :----------------------------------- |
-| `[name]`           | `[type]` | **Required/Optional**. [Description] |
-
-#### Example Request Body:
-TODO
-```json
+Example URL:
+`POST xxxxx:8080/envdash/v1/auth/`
+Body:
+``` json
 {
-  "key": "value"
+  "name": "Alice",
+  "email": "alice@mail.com"
 }
 ```
+| Parameter      | Type  | Description                       |
+|:-----------|:------------|:----------------------------    |
+| `name`     | `string`    | *Required*                      |
+| `email`    | `string`    | *Required*. Need to contain "@" |
+
+
 
 #### Response:
 
 | Status Code | Content-Type       |
 | :---------- | :----------------- |
-| `200 OK`    | `application/json` |
+| `201 Created`    | `application/json` |
 
-```json
+
+You will then receive an API key:
+``` json
 {
-  "message": "example response"
+  "key": "sk-envdash-YourAPIkey...",
+  "createdAt": "20260317 20:32"
 }
 ```
+
+| Fields      | Description                 |
+|:----------- |:----------------------------|
+| `key`       | Your personal API key  |
+| `createdAt` | When the API key was created     |
+
+
+</details>
+
+
+<details>
+<summary> <h2> Delete Api Key </h2> </summary>
+
+Simply **DELETE** your api key using api you want to delete in url `/envdash/v1/auth/{apiKey}` 
+
+Example URL:
+`DELETE xxxxx:8080/envdash/v1/auth/sk-envdash-YourAPIkey`
+
+| Header      | Value: Type | Description                 |
+|:-----------|:------------|:----------------------------|
+| `x-api-key` | {YourAPIkey}       | Needs to be an api key from the same user. You have to be allowed to delete the key. You can delete your own key asswell |
+
+
+#### Response:
+
+| Status Code   |
+|:--------------|
+| `204 No Content` |
+
+When you get the 204, you know that the api key is deleted.
+If you receive any other status code, the API key was not deleted.
+You will get a helpfull error message, try using that to understand
+why the key cant be deleted.
 
 </details>
 
@@ -324,7 +361,195 @@ TODO
 }
 ```
 
+</details> 
+
+---
+
+<details>
+<summary><h2> Create Notification </h2></summary>
+
+Simply **POST** your notification query with correct body `/envdash/v1/notifications/`
+ [Remember to have Api Key in header] 
+
+```http
+POST /envdash/v1/notifications/
+```
+Body:
+We have two type of notificaitons, lifecycle and threshold:
+````json
+{
+   "url":     "https://webhook.site/your-unique-URL",
+   "country": "NO",
+   "event":   "INVOKE"
+}
+````
+````json
+{
+   "url":     "https://webhook.site/your-unique-URL",
+   "country": "NO",
+   "event":   "THRESHOLD",
+   "threshold": {
+      "field":    "pm25",
+      "operator": ">",
+      "value":    35.0
+   }
+}
+````
+
+
+#### Parameters:
+For a detailed look at the parameters take a look here: [Parameters](docs/Notifications.md#parameters)
+
+
+#### Response:
+
+| Status Code      |
+| :--------------- |
+| `201 Created` |
+Body:
+````json
+{
+ìd:   IdOfYourNotifcation
+}
+````
+You have now created a notfication, it wil send a webhook when the
+event you registerd is fulfilled
+
 </details>
+
+--- 
+
+<details>
+<summary><h2> Retrieve a Specific Webhook  </h2></summary>
+
+Simply **GET** your notifcation by `/envdash/v1/notifications/{ID_Of_Notifcation}`
+
+Example URL:
+`GET xxxxx:8080/envdash/v1/notifications/uUmLcayWY9WgGL26ASDp`
+
+-Body empty-
+
+#### Response:
+
+Header:
+
+| Status Code | Content-Type       |
+| :---------- | :----------------- |
+| `200 OK`    | `application/json` |
+
+
+Body:
+``` json
+{
+    "id": "ID_Of_Notifcation",
+    "url": "https://webhook.site/your-unique-URL",
+    "country": "NO",
+    "event": "THRESHOLD",
+    "threshold": {
+        "field": "PM25",
+        "operator": "==",
+        "value": 35
+    }
+}
+```
+
+### Parameters
+For a detailed look at the parameters take a look here: [Parameters](docs/Notifications.md#parameters)
+
+
+considerations: everyone can read your webhook even non owners of the particular webhooks as long as they know the ID
+
+</details>
+
+---
+
+<details>
+<summary> <h2> List All Your Registered Webhooks </h2> </summary>
+
+Simply **GET** `/envdash/v1/notifications/`
+
+Example URL:
+`GET xxxxx:8080/envdash/v1/notifications/`
+
+-Body empty-
+
+#### Response:
+
+| Status Code | Content-Type       |
+| :---------- | :----------------- |
+| `200 OK`    | `application/json` |
+
+
+You wil now see every notification registerd to your account
+``` json
+{
+[
+    {
+        "id": "ID_Of_Notifcation",
+        "url": "https://webhook.site/your-unique-URL",
+        "country": "NO",
+        "event": "CHANGE"
+    },
+    {
+        "id": "Another_ID_Of_Notifcation",
+        "url": "https://webhook.site/your-unique-URL",
+        "country": "NO",
+        "event": "DELETE"
+    }
+]
+}
+```
+
+### Parameters
+For a detailed look at the parameters take a look here: [Parameters](docs/Notifications.md#parameters)|
+
+</details>
+
+---
+
+<details>
+
+<summary> <h2> Delete Notification </h2> </summary>
+
+Simply **DELETE** your notification `/envdash/v1/notifications/{NotificationID}`
+
+Example URL:
+`DELETE xxxxx:8080/envdash/v1/notifications/6pSNoPNL08oroGqRWoAR`
+-Body empty-
+
+#### Response:
+
+| Status Code | Content-Type       |
+| :---------- | :----------------- |
+| `204 No Content`    | `application/json` |
+
+You have now deleted your notification.
+Remember, you can not delete someone leses notification
+This is desided on your api key you use in header.
+
+</details>
+
+---
+
+
+
+
+---
+
+s
+
+---
+
+s
+
+---
+
+| Fields      | Description                 |
+|:----------- |:----------------------------|
+| `key`       | Your personal API key  |
+| `createdAt` | When the API key was created     |
+
+
 
 <details>
 <summary><h4>[Endpoint purpose 7]</h4></summary>
@@ -354,7 +579,7 @@ To run this project, you will need to add the following environment variables to
 * Clone the repository
 
 ```bash
-git clone https://git.gvk.idi.ntnu.no/course/prog2005/prog2005-2026-workspace/broved/assignment-2.git
+git clone https://github.com/lenny113/Cloud.git
 ```
 
 * Navigate to the project directory:
