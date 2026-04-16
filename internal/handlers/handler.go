@@ -1,49 +1,69 @@
 package handlers
 
 import (
-	"assignment-2/internal/client/restcountries"
+	client "assignment-2/internal/client/restcountries"
 	utils "assignment-2/internal/models"
 	"assignment-2/internal/store"
+	"context"
 	"encoding/json"
 	"net/http"
+
+	models "assignment-2/internal/models"
 )
 
-type Handler struct {
-	store               store.FireStore // firestore
-	restCountriesClient client.RestCountriesClient
+// StoreInterface allows both *store.FireStore and *store.MockStore to be used interchangeably.
+type StoreInterface interface {
+	CreateRegistration(ctx context.Context, apiKey string, reg models.Registration) (string, error)
+	GetRegistration(ctx context.Context, apiKey string, id string) (*models.Registration, error)
+	GetAllRegistrations(ctx context.Context, apiKey string) ([]models.Registration, error)
+	UpdateRegistration(ctx context.Context, apiKey string, id string, reg models.Registration) error
+	DeleteRegistration(ctx context.Context, apiKey string, id string) error
+	TweakRegistration(ctx context.Context, apiKey string, id string, patch models.RegistrationPatch) error
+	APIKeyExists(ctx context.Context, keyHash string) bool
+	ApiKeyExists(ctx context.Context, keyHash string) bool
+	CountApiPerUser(ctx context.Context, email string) (int, error)
+	CreateApiStorage(ctx context.Context, reg models.Authentication) error
+	DeleteAPIkey(ctx context.Context, apiKey string) error
 }
 
-func NewHandler(s store.FireStore, restCountriesClient client.RestCountriesClient) *Handler {
+// CacheInterface allows both *store.Cache and mockCache to be used interchangeably.
+type CacheInterface interface {
+	RequestFromCache(req store.CacheExternalRequest) (store.CacheResponse, error)
+}
+
+type Handler struct {
+	store               StoreInterface
+	restCountriesClient client.RestCountriesClient
+	cache               CacheInterface
+}
+
+func NewHandler(s StoreInterface, restCountriesClient client.RestCountriesClient) *Handler {
 	return &Handler{
 		store:               s,
 		restCountriesClient: restCountriesClient,
 	}
 }
 
-func NewFirestoreHandler(s *store.FireStore) *Handler {
-	return &Handler{store: *s}
+func NewFirestoreHandler(s *store.FireStore, cache CacheInterface) *Handler {
+	return &Handler{
+		store: s,
+		cache: cache,
+	}
 }
+
 func writeJSONError(w http.ResponseWriter, code int, errMsg string) {
-	// Create an instance of the custom error struct
 	response := utils.ErrorResponse{
 		Code:    code,
 		Message: errMsg,
 	}
 
-	// Marshal the struct into a JSON byte slice
 	jsonBytes, err := json.Marshal(response)
 	if err != nil {
-		// If marshaling fails (rare), fall back to a plain text error
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	// Set the Content-Type header to application/json
 	w.Header().Set("Content-Type", "application/json")
-
-	// Set the HTTP status code
 	w.WriteHeader(code)
-
-	// Write the JSON response body
 	w.Write(jsonBytes)
 }
