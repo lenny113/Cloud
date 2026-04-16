@@ -358,11 +358,11 @@ cd ./cmd/envdash
 
 ### Run using Go:
   ```bash
-  go run ./cmd/globeboard/app.go
+  go run ./cmd/envdash/app.go
   ```
     - From Build:
   ```bash
-  go build -a -o app ./cmd/globeboard
+  go build -a -o app ./cmd/envdash
   ```
   ```bash
   ./app
