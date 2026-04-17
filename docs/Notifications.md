@@ -30,7 +30,7 @@ For threshold notificatoins:
 
 
 ### Design desisions
-We decided to allow everyone to look up notification IDs, regardless of whether they own them or not. This is intended to help combat spam. When you receive a webhook, the notification ID is included as well. It would be unwise to prevent the recipient from reading the notification they received.
+We decided to fully implement authenification in notifications, your notifications are tightly tied to your account
 
 ### How are we sending webhooks?
 
