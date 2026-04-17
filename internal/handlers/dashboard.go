@@ -3,6 +3,7 @@ package handlers
 import (
 	"assignment-2/internal/store"
 	"assignment-2/internal/utils"
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -32,10 +33,10 @@ func (h *Handler) DashboardsGetHandler(w http.ResponseWriter, r *http.Request) {
 	apiKey := GetAndHashAPIKey(r)
 
 	// Verify that the hashed API key exists in the store
-	if !h.store.ApiKeyExists(r.Context(), apiKey) {
-		writeJSONError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
+	//if !h.store.ApiKeyExists(r.Context(), apiKey) {
+	//	writeJSONError(w, http.StatusUnauthorized, "unauthorized")
+	//	return
+	//}
 
 	// Retrieve the country registration associated with the API key and dashboard ID
 	registration, err := h.store.GetRegistration(r.Context(), apiKey, id)
@@ -92,10 +93,10 @@ func (h *Handler) DashboardsGetHandler(w http.ResponseWriter, r *http.Request) {
 	if cacheResp.MeanPM10 != nil {
 		measured["PM10"] = *cacheResp.MeanPM10
 	}
-
+	ctx := context.Background()
 	// Trigger both notification types
-	h.CheckLifecycleNotifications(r.Context(), isoCode, "INVOKE")
-	h.CheckThresholdNotifications(r.Context(), isoCode, measured)
+	h.CheckLifecycleNotifications(ctx, isoCode, "INVOKE")
+	h.CheckThresholdNotifications(ctx, isoCode, measured)
 
 	// Assemble the dashboard response payload with all available features
 	dashboard := map[string]interface{}{
