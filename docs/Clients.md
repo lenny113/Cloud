@@ -117,5 +117,5 @@ type Weather_INT_Response struct {
 While the clients work well due to their simplicity there are some areas for improvement.
 We should consider implementing batching, where we can request information for multiple requests at once, this would reduce the strain on the external apis even further.
 
-In regards to the OpenAQ api, this currently requests information about a single country, looking thorugh all of their measurements. This means it can send many (30+)  requests for a country, and it can get quite slow, as the API is ratelimited to 60 requests per second. 
+In regards to the OpenAQ api, this currently requests a single page of information about a single country. Otherwise it would send many (30+) requests for a country, and which was unacceptably+ slow, as the API is ratelimited to 60 requests per second. We might be able to find a more optimized request for this. 
       
